@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <title>Pokémon Dashboard</title>
   <style>
-    /* ───────────────────────────────────────────────
-       Global
-    ─────────────────────────────────────────────── */
+    
     body {
       margin: 0;
       font-family: sans-serif;
@@ -22,9 +20,7 @@
       height: 100%;
     }
 
-    /* ───────────────────────────────────────────────
-       Layout Containers
-    ─────────────────────────────────────────────── */
+    
     #chart {
       width: 100%;
       height: 400px;
@@ -38,16 +34,14 @@
     #rank-chart,
     #scatter-chart {
       flex: 1;          /* each takes half the row */
-      height: 300px;    /* match your desired chart height */
+      height: 300px;    
     }
     #rank-chart {
-      margin-right: 10px; /* tiny gutter on the right */
+      margin-right: 10px; 
     }
 
-    /* ───────────────────────────────────────────────
-       Chart Containers (optional extra tweaks)
-    ─────────────────────────────────────────────── */
-    /* you can leave these widths if you prefer explicit halves */
+    
+   
     #rank-chart  { width: 50%; }
     #scatter-chart { width: 50%; }
 
@@ -56,18 +50,18 @@
 <body>
   <h1>Which ability is each type of Pokémon better at (Attack, Defense and HP)</h1>
 
-  <!-- Advanced view (Sankey) -->
+
   <div id="chart"></div>
 
-  <!-- Fundamental views side by side -->
+ 
   <div id="bottom-row">
-    <!-- Bar chart: Top 20 Pokémon -->
+
     <div id="rank-chart"></div>
-    <!-- Scatter plot: Attack vs Defense -->
+    
     <div id="scatter-chart"></div>
   </div>
 
-  <!-- D3 & helpers -->
+
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
   <script src="main.js"></script>
