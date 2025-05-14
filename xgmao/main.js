@@ -175,13 +175,14 @@ d3.csv("Pokemon.csv", d => ({
   const rc = d3.select("#rank-chart"),
         BW = rc.node().clientWidth  - margin.left - margin.right,
         BH = rc.node().clientHeight - margin.top  - margin.bottom;
-
+        
+// Set up SVG canvas for the bar chart, including margins
   const barSvg = rc.append("svg")
       .attr("width",  BW + margin.left + margin.right)
       .attr("height", BH + margin.top  + margin.bottom)
     .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
-
+// Scales
   const x = d3.scaleBand()
       .domain(totals.map(d => d.name))
       .range([0, BW])
@@ -236,8 +237,7 @@ d3.csv("Pokemon.csv", d => ({
     .style("text-align","center")
     .style("margin-bottom","0.5em");
 
-    // C') DRAW CATCH RATE vs TOTAL POINTS
-// C'') DRAW AGGREGATED CATCH RATE vs TOTAL POINTS
+// C') DRAW CATCH RATE vs TOTAL POINTS
 (function drawScatter(raw) {
   // — 1) Roll up into a nested Map: type → catchRate → {count, avgTotal}
   const grouped = d3.rollup(
@@ -250,7 +250,7 @@ d3.csv("Pokemon.csv", d => ({
     d => +d.Catch_Rate
   );
 
-  // — 2) Flatten into an array
+  //  Flatten into an array
   const scatterData = [];
   for (const [type, rateMap] of grouped) {
     for (const [catchRate, stats] of rateMap) {
@@ -263,13 +263,13 @@ d3.csv("Pokemon.csv", d => ({
     }
   }
 
-  // — 3) Set up dimensions
+  // Set up dimensions
   const container = d3.select("#scatter-chart");
   const margin    = { top: 20, right: 20, bottom: 50, left: 60 };
   const width     = container.node().clientWidth  - margin.left - margin.right;
   const height    = container.node().clientHeight - margin.top  - margin.bottom;
 
-  // — 4) Scales
+  //  Scales
   const xScale = d3.scaleLinear()
       .domain(d3.extent(scatterData, d => d.catchRate)).nice()
       .range([0, width]);
@@ -282,21 +282,21 @@ d3.csv("Pokemon.csv", d => ({
       .domain([1, d3.max(scatterData, d => d.count)])
       .range([3, 12]);  // min/max radius
 
-  // — 5) Create SVG
+  //  Create SVG
   const svg = container.append("svg")
       .attr("width",  width  + margin.left + margin.right)
       .attr("height", height + margin.top  + margin.bottom)
     .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // — 6) Axes
+  //  Axes
   svg.append("g")
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(xScale));
   svg.append("g")
       .call(d3.axisLeft(yScale));
 
-  // — 7) Labels
+  //  Labels
   svg.append("text")
       .attr("x", width/2).attr("y", height + 40)
       .attr("text-anchor","middle")
@@ -307,7 +307,7 @@ d3.csv("Pokemon.csv", d => ({
       .attr("text-anchor","middle")
       .text("Avg Total Points (Atk+HP+Def)");
 
-  // — 8) Draw one circle per group
+  //  Draw one circle per group
   svg.selectAll("circle")
     .data(scatterData)
     .join("circle")
@@ -321,7 +321,7 @@ d3.csv("Pokemon.csv", d => ({
         `${d.type}\nCatch Rate: ${d.catchRate}\nAvg Total: ${d.avgTotal.toFixed(1)}\nCount: ${d.count}`
       );
 
-  // — 9) Title
+  //  Title
   svg.append("text")
       .attr("x", width/2).attr("y", -5)
       .attr("text-anchor","middle")
