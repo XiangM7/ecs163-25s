@@ -170,7 +170,7 @@ d3.csv("Pokemon.csv", d => ({
   .sort((a,b) => b.total - a.total)
   .slice(0, 20);
 
-
+//// Set up SVG canvas for the bar chart, including margins
   const margin = { top: 40, right: 20, bottom: 100, left: 60 };
   const rc = d3.select("#rank-chart"),
         BW = rc.node().clientWidth  - margin.left - margin.right,
@@ -181,7 +181,7 @@ d3.csv("Pokemon.csv", d => ({
       .attr("height", BH + margin.top  + margin.bottom)
     .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
-
+// Scale
   const x = d3.scaleBand()
       .domain(totals.map(d => d.name))
       .range([0, BW])
