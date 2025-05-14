@@ -1,6 +1,6 @@
-// main.js
 
-// 1) Pokémon‐type → hex lookup
+
+//  Pokémon‐type → hex lookup
 const typeColors = {
   Bug:      "#A8B820", Dark:     "#705848", Dragon:   "#7038F8",
   Electric: "#F8D030", Fairy:    "#EE99AC", Fighting: "#C03028",
@@ -10,7 +10,7 @@ const typeColors = {
   Rock:     "#B8A038", Steel:    "#B8B8D0", Water:     "#6890F0"
 };
 
-// 2) Load & parse CSV (now including name)
+//  Load & parse CSV 
 d3.csv("Pokemon.csv", d => ({
   name:    d.Name,
   type1:   d.Type_1,
@@ -24,11 +24,11 @@ d3.csv("Pokemon.csv", d => ({
 }))
 
 .then(raw => {
-  // ────────────────
-  // A) DRAW SANKEY
-  // ────────────────
 
-  // 3) Flatten dual‐types & assign half‐weight
+  // A) DRAW SANKEY
+  
+
+  //  Flatten dual‐types & assign half‐weight
   const entries = [];
   raw.forEach(d => {
     const w = d.type2 ? 0.5 : 1;
@@ -38,7 +38,7 @@ d3.csv("Pokemon.csv", d => ({
     }
   });
 
-  // 4) Build node list: All, each type, then 3 stat‐nodes
+  // Build node list: All, each type, then 3 stat‐nodes
   const types = Array.from(new Set(entries.map(e => e.type)));
   const nodes = [], indexByName = new Map();
   function addNode(name) {
@@ -51,7 +51,7 @@ d3.csv("Pokemon.csv", d => ({
   addNode("HP > 100");
   addNode("Defense > 100");
 
-  // 5) Build links into only the >100 nodes
+  //  Build links into only the >100 nodes
   const links = [];
   entries.forEach(e => {
     // All → Type
@@ -86,7 +86,7 @@ d3.csv("Pokemon.csv", d => ({
     }
   });
 
-  // 6) Sankey layout
+  //  Sankey layout
   const { sankey, sankeyLinkHorizontal } = d3;
   const chartDiv = document.getElementById("chart");
   const W = chartDiv.clientWidth,
@@ -103,14 +103,14 @@ d3.csv("Pokemon.csv", d => ({
     links
   });
 
-  // 7) Draw Sankey SVG
+  //  Draw Sankey SVG
   const svg = d3.select("#chart")
     .append("svg")
       .attr("width",  W)
       .attr("height", H)
       .style("font", "10px sans-serif");
 
-  // 7a) Ribbons
+  //  Ribbons
   svg.append("g").attr("fill","none")
     .selectAll("path")
     .data(graph.links)
@@ -125,7 +125,7 @@ d3.csv("Pokemon.csv", d => ({
       .attr("stroke-width", d => Math.max(1, d.width))
       .attr("stroke-opacity", 0.7);
 
-  // 7b) Nodes
+  //  Nodes
   svg.append("g")
     .selectAll("rect")
     .data(graph.nodes)
@@ -144,7 +144,7 @@ d3.csv("Pokemon.csv", d => ({
       })
       .attr("stroke", "#000");
 
-  // 7c) Labels
+  //  Labels
   svg.append("g")
     .selectAll("text")
     .data(graph.nodes)
@@ -156,11 +156,10 @@ d3.csv("Pokemon.csv", d => ({
       .text(d => d.name);
 
 
-  // ─────────────────────
-  // B) DRAW BAR CHART
-  // ─────────────────────
 
-  // 8) Prepare totals and take top 20
+  // B) DRAW BAR CHART
+
+  // Prepare totals and take top 20
   const totals = raw
   .map(d => ({
     name:  d.name,
@@ -235,24 +234,22 @@ d3.csv("Pokemon.csv", d => ({
     .text("Top 20 Pokémon by Total Points of Abilities")
     .style("text-align","center")
     .style("margin-bottom","0.5em");
-  
-  // ────────────────────────
-  // C) DRAW ATTACK vs DEFENSE
-  // ────────────────────────
+
+    // C) DRAW ATTACK vs DEFENSE
 
   const scDiv = d3.select("#scatter-chart");
   const scMargin = { top: 20, right: 20, bottom: 40, left: 50 };
   const scW = scDiv.node().clientWidth  - scMargin.left - scMargin.right;
   const scH = scDiv.node().clientHeight - scMargin.top  - scMargin.bottom;
 
-  // 1) create SVG
+  //  create SVG
   const scSvg = scDiv.append("svg")
       .attr("width",  scW + scMargin.left + scMargin.right)
       .attr("height", scH + scMargin.top  + scMargin.bottom)
     .append("g")
       .attr("transform", `translate(${scMargin.left},${scMargin.top})`);
 
-  // 2) scales
+  //  scales
   const xScale = d3.scaleLinear()
       .domain(d3.extent(raw, d => d.attack)).nice()
       .range([0, scW]);
@@ -265,14 +262,14 @@ d3.csv("Pokemon.csv", d => ({
       .domain(d3.extent(raw, d => d.hp))
       .range([2, 8]);
 
-  // 3) axes
+  //  axes
   scSvg.append("g")
       .attr("transform", `translate(0,${scH})`)
       .call(d3.axisBottom(xScale));
   scSvg.append("g")
       .call(d3.axisLeft(yScale));
 
-  // 4) axis labels
+  //  axis labels
   scSvg.append("text")
       .attr("x", scW/2).attr("y", scH + 35)
       .attr("text-anchor","middle")
@@ -283,7 +280,7 @@ d3.csv("Pokemon.csv", d => ({
       .attr("text-anchor","middle")
       .text("Defense");
 
-  // 5) points
+  //  points
   scSvg.selectAll("circle")
     .data(raw)
     .join("circle")
@@ -293,7 +290,7 @@ d3.csv("Pokemon.csv", d => ({
       .attr("fill", d => typeColors[d.type1] || "#ccc")
       .attr("opacity", 0.7);
 
-  // 6) title
+  //  title
   scSvg.append("text")
       .attr("x", scW/2).attr("y", -5)
       .attr("text-anchor","middle")
