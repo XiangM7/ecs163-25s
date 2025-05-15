@@ -158,6 +158,8 @@ d3.csv("Pokemon.csv", d => ({
 
 
 
+
+
   // B) DRAW BAR CHART
 
   // Prepare totals and take top 20
@@ -170,7 +172,7 @@ d3.csv("Pokemon.csv", d => ({
   .sort((a,b) => b.total - a.total)
   .slice(0, 20);
 
-//// Set up SVG canvas for the bar chart, including margins
+// Set up SVG canvas for the bar chart, including margins
   const margin = { top: 40, right: 20, bottom: 100, left: 60 };
   const rc = d3.select("#rank-chart"),
         BW = rc.node().clientWidth  - margin.left - margin.right,
@@ -181,7 +183,7 @@ d3.csv("Pokemon.csv", d => ({
       .attr("height", BH + margin.top  + margin.bottom)
     .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
-// Scale
+//Scale
   const x = d3.scaleBand()
       .domain(totals.map(d => d.name))
       .range([0, BW])
@@ -228,16 +230,17 @@ d3.csv("Pokemon.csv", d => ({
       .attr("width",  x.bandwidth())
       .attr("height", d => BH - y(d.total))
       .attr("fill", d => typeColors[d.type] || "#ccc");
-
+  
 
   // bar chart title
   rc.insert("h2","svg")
     .text("Top 20 Pokémon by Total Points of Abilities")
     .style("text-align","center")
     .style("margin-bottom","0.5em");
+    
 
     // C') DRAW CATCH RATE vs TOTAL POINTS
-// C'') DRAW AGGREGATED CATCH RATE vs TOTAL POINTS
+
 (function drawScatter(raw) {
   // — 1) Roll up into a nested Map: type → catchRate → {count, avgTotal}
   const grouped = d3.rollup(
@@ -305,7 +308,8 @@ d3.csv("Pokemon.csv", d => ({
       .attr("transform","rotate(-90)")
       .attr("x", -height/2).attr("y", -45)
       .attr("text-anchor","middle")
-      .text("Avg Total Points (Atk+HP+Def)");
+      .text("Total Points (Atk+HP+Def)");
+        svg.append("text")
 
   // — 8) Draw one circle per group
   svg.selectAll("circle")
@@ -323,16 +327,25 @@ d3.csv("Pokemon.csv", d => ({
 
   // — 9) Title
   svg.append("text")
-      .attr("x", width/2).attr("y", -5)
+      .attr("x", width/2).attr("y", 5)
       .attr("text-anchor","middle")
       .attr("font-weight","bold")
       .text("Are stronger Pokémon harder to catch?");
 
   svg.append("text")
-      .attr("x", width/2).attr("y", 10)
+      .attr("x", width/2).attr("y", 20)
       .attr("text-anchor","middle")
       .attr("font-weight","bold")
       .text("Catch Rate vs Total Points ");
+
+ svg.append("text")
+  .attr("x", width - 2)            
+  .attr("y", -10)                    
+  .attr("text-anchor", "end")       
+  .attr("font-size", "10px")        
+  .attr("fill", "#555")             
+  .text("* Legends provided in Visualization above ");
+ 
 })(raw);
 
 
