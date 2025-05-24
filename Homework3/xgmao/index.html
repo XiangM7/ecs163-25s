@@ -4,63 +4,80 @@
   <meta charset="UTF-8">
   <title>Pokémon Dashboard</title>
   <style>
-    
     body {
-      margin: 0;
-      font-family: sans-serif;
+      margin:0;
+      font-family:sans-serif;
     }
     h1 {
-      margin: 0;
-      padding: 1rem;
-      background: #eee;
-      text-align: center;
+      margin:0;
+      padding:1rem;
+      background:#eee;
+      text-align:center;
     }
     svg {
-      width: 100%;
-      height: 100%;
+      width:100%;
+      height:100%;
     }
 
-    
+    /* Sankey container & reset button */
     #chart {
-      width: 100%;
-      height: 400px;
+      position:relative;
+      width:100%;
+      height:400px;
     }
+    #reset-btn {
+      position:absolute;
+      top:10px;
+      right:10px;
+      padding:4px 8px;
+      font-size:12px;
+      display:none;
+    }
+
+    /* Bottom row layout */
     #bottom-row {
-      display: flex;
-      gap: 20px;        /* space between charts */
-      padding: 20px  /* vertical breathing room */
-               0;
+      display:flex;
+      gap:20px;
+      padding:20px;
     }
-    #rank-chart,
+    #left-col, #scatter-chart {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:20px;
+    }
+    #left-inner {
+      display:flex;
+      gap:20px;
+      flex:1;
+    }
+    #rank-chart, #radar-chart {
+      flex:1;
+      height:300px;
+    }
     #scatter-chart {
-      flex: 1;          /* each takes half the row */
-      height: 300px;    
+      height:340px;
     }
-    #rank-chart {
-      margin-right: 10px; 
-    }
-
-    
-   
-    #rank-chart  { width: 50%; }
-    #scatter-chart { width: 50%; }
-
   </style>
 </head>
 <body>
-  <h1>Which ability is each type of Pokémon better at (Attack, Defense and HP)</h1>
+  <h1>Which ability is each type of Pokémon better at (Attack, Defense &amp; HP)</h1>
 
-
-  <div id="chart"></div>
-
- 
-  <div id="bottom-row">
-
-    <div id="rank-chart"></div>
-    
-    <div id="scatter-chart"></div>
+  <!-- A) Sankey + Reset Button -->
+  <div id="chart">
+    <button id="reset-btn">Reset View</button>
   </div>
 
+  <!-- B/C/D) Bar, Radar & Scatter -->
+  <div id="bottom-row">
+    <div id="left-col">
+      <div id="left-inner">
+        <div id="rank-chart"></div>
+        <div id="radar-chart"></div>
+      </div>
+    </div>
+    <div id="scatter-chart"></div>
+  </div>
 
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
