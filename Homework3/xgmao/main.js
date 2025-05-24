@@ -1,6 +1,4 @@
-
-
-//  Pokémon‐type → hex lookup
+// generate color for types
 const typeColors = {
   Bug:      "#A8B820", Dark:     "#705848", Dragon:   "#7038F8",
   Electric: "#F8D030", Fairy:    "#EE99AC", Fighting: "#C03028",
@@ -10,125 +8,120 @@ const typeColors = {
   Rock:     "#B8A038", Steel:    "#B8B8D0", Water:     "#6890F0"
 };
 
-//  Load & parse CSV 
+// Load CSV and parse into numeric and string fields
 d3.csv("Pokemon.csv", d => ({
-  name:    d.Name,
-  type1:   d.Type_1,
-  type2:   d.Type_2 || null,
-  attack: +d.Attack,
-  hp:     +d.HP,
-  def:    +d.Defense,
-  spAtk:  +d.Sp_Atk,
-  spDef:  +d.Sp_Def,
-  speed:  +d.Speed,
-  Catch_Rate:  +d.Catch_Rate
-}))
+  name:      d.Name,
+  type1:     d.Type_1,
+  type2:     d.Type_2 || null,
+  attack:    +d.Attack,
+  hp:        +d.HP,
+  def:       +d.Defense,
+  spAtk:     +d.Sp_Atk,
+  spDef:     +d.Sp_Def,
+  speed:     +d.Speed,
+  catchRate: +d.Catch_Rate
+})).then(raw => {
 
-.then(raw => {
-
-  // A) DRAW SANKEY
-  
-
-  //  Flatten dual‐types & assign half‐weight
   const entries = [];
+
+  // Create entries array, splitting dual types with weight
   raw.forEach(d => {
     const w = d.type2 ? 0.5 : 1;
     entries.push({ type: d.type1, w, atk: d.attack, hp: d.hp, def: d.def });
-    if (d.type2) {
-      entries.push({ type: d.type2, w, atk: d.attack, hp: d.hp, def: d.def });
-    }
+    if (d.type2) entries.push({ type: d.type2, w, atk: d.attack, hp: d.hp, def: d.def });
   });
 
-  // Build node list: All, each type, then 3 stat‐nodes
   const types = Array.from(new Set(entries.map(e => e.type)));
+  const stats = ["Attack > 100", "HP > 100", "Defense > 100"];
+
   const nodes = [], indexByName = new Map();
+
+  // Add a node with given name
   function addNode(name) {
     indexByName.set(name, nodes.length);
     nodes.push({ name });
   }
   addNode("All Pokémon");
   types.forEach(addNode);
-  addNode("Attack > 100");
-  addNode("HP > 100");
-  addNode("Defense > 100");
+  stats.forEach(addNode);
 
-  //  Build links into only the >100 nodes
   const links = [];
+
+  // Build sankey links based on type and stat thresholds
   entries.forEach(e => {
-    // All → Type
-    links.push({
-      source: indexByName.get("All Pokémon"),
-      target: indexByName.get(e.type),
-      value:  e.w
-    });
-    // Type → Attack>100?
-    if (e.atk > 100) {
-      links.push({
-        source: indexByName.get(e.type),
-        target: indexByName.get("Attack > 100"),
-        value:  e.w
-      });
-    }
-    // Type → HP>100?
-    if (e.hp > 100) {
-      links.push({
-        source: indexByName.get(e.type),
-        target: indexByName.get("HP > 100"),
-        value:  e.w
-      });
-    }
-    // Type → Defense>100?
-    if (e.def > 100) {
-      links.push({
-        source: indexByName.get(e.type),
-        target: indexByName.get("Defense > 100"),
-        value:  e.w
-      });
-    }
+    links.push({ source: indexByName.get("All Pokémon"), target: indexByName.get(e.type), value: e.w });
+    if (e.atk > 100) links.push({ source: indexByName.get(e.type), target: indexByName.get("Attack > 100"), value: e.w });
+    if (e.hp  > 100) links.push({ source: indexByName.get(e.type), target: indexByName.get("HP > 100"), value: e.w });
+    if (e.def > 100) links.push({ source: indexByName.get(e.type), target: indexByName.get("Defense > 100"), value: e.w });
   });
 
-  //  Sankey layout
-  const { sankey, sankeyLinkHorizontal } = d3;
-  const chartDiv = document.getElementById("chart");
-  const W = chartDiv.clientWidth,
+  const { sankey, sankeyLinkHorizontal } = d3; // Destructure sankey functions
+  const chartDiv = document.getElementById("chart"),
+        W = chartDiv.clientWidth,
         H = chartDiv.clientHeight;
 
+  // Configure sankey layout generator
   const sankeyGen = sankey()
     .nodeWidth(15)
     .nodePadding(5)
     .nodeAlign(d3.sankeyJustify)
     .extent([[1,1],[W-1,H-1]]);
 
-  const graph = sankeyGen({
-    nodes: nodes.map(d => ({ ...d })),
-    links
+  // Generate sankey graph data
+  const graph = sankeyGen({ nodes: nodes.map(d => ({ ...d })), links });
+
+  // Create main SVG element
+  const svg    = d3.select("#chart").append("svg")
+                   .attr("viewBox", `0 0 ${W} ${H}`)
+                   .attr("width", W).attr("height", H)
+                   .style("font", "10px sans-serif");
+  const linkG  = svg.append("g").attr("fill", "none");   // Group for links
+  const nodeG  = svg.append("g");                         // Group for nodes
+  const labelG = svg.append("g").attr("class", "labels"); // Group for node labels
+  const valueG = svg.append("g").attr("class", "values"); // Group for value annotations
+
+  // Reset zoom when clicking on background
+  svg.on("click", (event) => {
+    if (event.target.tagName === "svg") {
+      svg.transition().duration(600).attr("viewBox", `0 0 ${W} ${H}`);
+      valueG.selectAll("*").remove();
+    }
   });
 
-  //  Draw Sankey SVG
-  const svg = d3.select("#chart")
-    .append("svg")
-      .attr("width",  W)
-      .attr("height", H)
-      .style("font", "10px sans-serif");
+  const phase1 = graph.links.filter(d => d.source.name === "All Pokémon");
+  const phase2 = graph.links.filter(d => d.source.name !== "All Pokémon");
 
-  //  Ribbons
-  svg.append("g").attr("fill","none")
-    .selectAll("path")
-    .data(graph.links)
-    .join("path")
-      .attr("d", sankeyLinkHorizontal())
+  // Draw sankey links with entry animation
+  function drawPhase(data, cls, delay) {
+    const sel = linkG.selectAll(`path.${cls}`)
+      .data(data, d => d.source.name + "→" + d.target.name);
+
+    sel.enter().append("path")
+      .attr("class", cls)
+      .attr("d", sankeyLinkHorizontal()) // Path generator
       .attr("stroke", d => {
-        const key = d.source.name === "All Pokémon"
-          ? d.target.name
-          : d.source.name;
+        const key = d.source.name==="All Pokémon" ? d.target.name : d.source.name;
         return typeColors[key] || "#ccc";
       })
       .attr("stroke-width", d => Math.max(1, d.width))
-      .attr("stroke-opacity", 0.7);
+      .attr("stroke-opacity", 0.7)
+      .each(function() {
+        const L = this.getTotalLength();
+        d3.select(this)
+          .attr("stroke-dasharray", `${L} ${L}`)
+          .attr("stroke-dashoffset", L)
+          .transition().delay(delay).duration(1000)
+            .attr("stroke-dashoffset", 0);
+      });
 
-  //  Nodes
-  svg.append("g")
-    .selectAll("rect")
+    sel.exit().remove();
+  }
+
+  drawPhase(phase1, "p1", 0);
+  drawPhase(phase2, "p2", 400);
+
+  // Draw nodes and add click handlers for stats nodes
+  nodeG.selectAll("rect")
     .data(graph.nodes)
     .join("rect")
       .attr("x",      d => d.x0)
@@ -137,206 +130,316 @@ d3.csv("Pokemon.csv", d => ({
       .attr("height", d => d.y1 - d.y0)
       .attr("fill", d => {
         if (d.name === "All Pokémon") return "#ccc";
-        if (typeColors[d.name])      return typeColors[d.name];
+        if (typeColors[d.name]) return typeColors[d.name];
         if (d.name === "Attack > 100")  return "#e41a1c";
         if (d.name === "HP > 100")      return "#377eb8";
         if (d.name === "Defense > 100") return "#4daf4a";
         return "#999";
       })
-      .attr("stroke", "#000");
+      .attr("stroke", "#000")
+      .style("cursor", d => stats.includes(d.name) ? "pointer" : "default")
+      .on("click", (e,d) => {
+        if (!stats.includes(d.name)) return;
+        e.stopPropagation();
+        zoomTo(d);               // Zoom into clicked node
+        showValues(d.name);      // Show stat values
+      });
 
-  //  Labels
-  svg.append("g")
-    .selectAll("text")
+  // Add text labels for nodes
+  labelG.selectAll("text")
     .data(graph.nodes)
     .join("text")
-      .attr("x",      d => d.x0 < W/2 ? d.x1 + 6 : d.x0 - 6)
-      .attr("y",      d => (d.y0 + d.y1) / 2)
-      .attr("dy",     "0.35em")
-      .attr("text-anchor", d => d.x0 < W/2 ? "start" : "end")
+      .attr("x", d => stats.includes(d.name)
+        ? (d.x0 + d.x1)/2 - 25
+        : (d.x0 < W/2 ? d.x1 + 6 : d.x0 - 6))
+      .attr("y", d => stats.includes(d.name)
+        ? d.y1 + 14
+        : (d.y0 + d.y1)/2)
+      .attr("dy", "0.35em")
+      .attr("text-anchor", d => stats.includes(d.name)
+        ? "middle"
+        : (d.x0 < W/2 ? "start" : "end"))
       .text(d => d.name);
 
+  // Zoom helper function
+  function zoomTo(d) {
+    const pad = 20;
+    const dx  = d.x1 - d.x0 + pad*2;
+    const dy  = d.y1 - d.y0 + pad*2;
+    const minX = d.x0 - pad;
+    const minY = d.y0 - pad;
+    svg.transition().duration(600)
+       .attr("viewBox", `${minX} ${minY} ${dx} ${dy}`);
+  }
 
-
-  // B) DRAW BAR CHART
-
-  // Prepare totals and take top 20
-  const totals = raw
-  .map(d => ({
-    name:  d.name,
-    type:  d.type1,                        // ← add this
+  // Prepare top-10 totals for bar chart
+  const totals = raw.map(d => ({
+    name: d.name,
+    type: d.type1,
     total: d.attack + d.hp + d.def
   }))
   .sort((a,b) => b.total - a.total)
-  .slice(0, 20);
+  .slice(0, 10);
 
-
-  const margin = { top: 40, right: 20, bottom: 100, left: 60 };
+  const barMargin = { top: 0, right: 20, bottom: 80, left: 60 };
   const rc = d3.select("#rank-chart"),
-        BW = rc.node().clientWidth  - margin.left - margin.right,
-        BH = rc.node().clientHeight - margin.top  - margin.bottom;
+        BW = rc.node().clientWidth - barMargin.left - barMargin.right,
+        BH = rc.node().clientHeight - barMargin.top - barMargin.bottom;
 
+  // Create bar chart SVG
   const barSvg = rc.append("svg")
-      .attr("width",  BW + margin.left + margin.right)
-      .attr("height", BH + margin.top  + margin.bottom)
+      .attr("width", BW + barMargin.left + barMargin.right)
+      .attr("height", BH + barMargin.top + barMargin.bottom)
     .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
+      .attr("transform", `translate(${barMargin.left},${barMargin.top})`);
 
+  // X scale for bar names
   const x = d3.scaleBand()
       .domain(totals.map(d => d.name))
-      .range([0, BW])
-      .padding(0.2);
+      .range([0, BW]).padding(0.2);
 
+  // Y scale for bar values
   const y = d3.scaleLinear()
-      .domain([0, d3.max(totals, d => d.total)])
-      .nice()
+      .domain([0, d3.max(totals, d => d.total)]).nice()
       .range([BH, 0]);
 
-  // axes
+  // Draw X axis with rotated labels
   barSvg.append("g")
       .attr("transform", `translate(0,${BH})`)
       .call(d3.axisBottom(x))
     .selectAll("text")
-      .attr("transform","rotate(-45)")
+      .attr("transform", "rotate(-45)")
       .attr("text-anchor","end")
       .attr("dx","-0.5em")
       .attr("dy","0.25em");
 
+  // Draw Y axis
   barSvg.append("g")
-      .call(d3.axisLeft(y).ticks(6));
+      .call(d3.axisLeft(y).ticks(5));
 
-  // axis labels
+  // Placeholder for X axis label
   barSvg.append("text")
-      .attr("x", BW/2).attr("y", BH + 45)
+      .attr("x", BW/2).attr("y", BH + 60)
       .attr("text-anchor","middle")
-      .attr("font-size","14px")
-      .text("Pokémon");
+      .text("");
 
+  // Y axis label for bar chart
   barSvg.append("text")
       .attr("transform","rotate(-90)")
       .attr("x", -BH/2).attr("y", -45)
       .attr("text-anchor","middle")
-      .attr("font-size","14px")
       .text("Total Points (Atk+HP+Def)");
 
-  // bars
-  barSvg.selectAll("rect")
+  // Draw bars and attach click for radar chart
+  barSvg.selectAll("rect.bar")
     .data(totals)
-    .enter().append("rect")
-      .attr("x",      d => x(d.name))
-      .attr("y",      d => y(d.total))
-      .attr("width",  x.bandwidth())
+    .join("rect")
+      .attr("class","bar")
+      .attr("x", d => x(d.name))
+      .attr("y", d => y(d.total))
+      .attr("width", x.bandwidth())
       .attr("height", d => BH - y(d.total))
-      .attr("fill", d => typeColors[d.type] || "#ccc");
+      .attr("fill", d => typeColors[d.type] || "#ccc")
+      .style("cursor","pointer")
+      .on("click", (e,d) => drawRadar(d.name));
 
-
-  // bar chart title
+  // Insert bar chart title
   rc.insert("h2","svg")
-    .text("Top 20 Pokémon by Total Points of Abilities")
+    .text("Top 10 Pokémon by Total Points")
     .style("text-align","center")
-    .style("margin-bottom","0.5em");
+    .style("margin","0 0 8px");
 
-    // C') DRAW CATCH RATE vs TOTAL POINTS
-// C'') DRAW AGGREGATED CATCH RATE vs TOTAL POINTS
-(function drawScatter(raw) {
-  // — 1) Roll up into a nested Map: type → catchRate → {count, avgTotal}
-  const grouped = d3.rollup(
-    raw,
-    v => ({
-      count:    v.length,
-      avgTotal: d3.mean(v, d => d.attack + d.hp + d.def)
-    }),
-    d => d.type1,
-    d => +d.Catch_Rate
-  );
-
-  // — 2) Flatten into an array
-  const scatterData = [];
-  for (const [type, rateMap] of grouped) {
-    for (const [catchRate, stats] of rateMap) {
-      scatterData.push({
-        type,
-        catchRate,
-        count:    stats.count,
-        avgTotal: stats.avgTotal
-      });
+  // Immediately-invoked function to draw scatter plot
+  (function drawScatter(raw) {
+    // Roll up data by type and catch rate
+    const grouped = d3.rollup(
+      raw,
+      v => ({ count: v.length, avgTotal: d3.mean(v, d => d.attack + d.hp + d.def) }),
+      d => d.type1,
+      d => +d.catchRate
+    );
+    const scatterData = [];
+    for (const [type, rateMap] of grouped) {
+      for (const [catchRate, stats] of rateMap) {
+        scatterData.push({ type, catchRate, count: stats.count, avgTotal: stats.avgTotal });
+      }
     }
+    const container = d3.select("#scatter-chart");
+    const margin    = { top:20, right:20, bottom:50, left:60 };
+    const width     = container.node().clientWidth - margin.left - margin.right;
+    const height    = container.node().clientHeight - margin.top - margin.bottom;
+    let xExtent = d3.extent(scatterData, d => d.catchRate);
+    let yExtent = d3.extent(scatterData, d => d.avgTotal);
+    const xScale = d3.scaleLinear().domain(xExtent).nice().range([0,width]);
+    const yScale = d3.scaleLinear().domain(yExtent).nice().range([height,0]);
+    const rScale = d3.scaleSqrt().domain([1, d3.max(scatterData, d => d.count)]).range([3,12]);
+
+    // Create SVG for scatter
+    const svg = container.append("svg")
+        .attr("width", width+margin.left+margin.right)
+        .attr("height", height+margin.top+margin.bottom)
+      .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Background rect for click-to-reset
+    svg.append("rect")
+      .attr("class","bg")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("fill","transparent")
+      .style("cursor","pointer")
+      .on("click", resetZoom);
+
+    // X axis group
+    const xAxisG = svg.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(xScale));
+    // Y axis group
+    const yAxisG = svg.append("g")
+        .call(d3.axisLeft(yScale));
+
+    // X axis label
+    svg.append("text")
+      .attr("x", width/2).attr("y", height + 30)
+      .attr("text-anchor", "middle")
+      .attr("font-size","12px")
+      .text("Catch Rate");
+
+    // Y axis label
+    svg.append("text")
+        .attr("transform","rotate(-90)")
+        .attr("x",-height/2).attr("y",-45)
+        .attr("text-anchor","middle")
+        .text("Avg Total Points");
+
+    // Draw data circles
+    const circles = svg.append("g").selectAll("circle")
+      .data(scatterData).join("circle")
+        .attr("cx", d => xScale(d.catchRate))
+        .attr("cy", d => yScale(d.avgTotal))
+        .attr("r", d => rScale(d.count))
+        .attr("fill", d => typeColors[d.type] || "#ccc")
+        .attr("opacity",0.7)
+        .style("cursor","pointer")
+        .on("click", pointClick);
+
+    // Point click to zoom and annotate
+    function pointClick(event,d) {
+      event.stopPropagation();
+      circles.attr("stroke",null);
+      d3.select(this).attr("stroke","#000").attr("stroke-width",2);
+      const deltaX=(xExtent[1]-xExtent[0])*0.2;
+      const deltaY=(yExtent[1]-yExtent[0])*0.2;
+      xScale.domain([d.catchRate-deltaX,d.catchRate+deltaX]).nice();
+      yScale.domain([d.avgTotal-deltaY,d.avgTotal+deltaY]).nice();
+      const t=svg.transition().duration(750);
+      xAxisG.transition(t).call(d3.axisBottom(xScale));
+      yAxisG.transition(t).call(d3.axisLeft(yScale));
+      circles.transition(t)
+        .attr("cx",d=>xScale(d.catchRate))
+        .attr("cy",d=>yScale(d.avgTotal));
+      svg.selectAll(".annot").remove();
+      const info = [
+        `Type: ${d.type}`,
+        `Avg Total: ${d.avgTotal.toFixed(1)}`,
+        `Catch Rate: ${d.catchRate}`
+      ];
+      info.forEach((txt,i) => svg.append("text")
+        .attr("class","annot")
+        .attr("x", xScale(d.catchRate)+8)
+        .attr("y", yScale(d.avgTotal)-8 + i*14)
+        .attr("font-size","12px")
+        .attr("font-weight","bold")
+        .text(txt));
+    }
+
+    // Reset zoom to full extents
+    function resetZoom() {
+      circles.attr("stroke",null);
+      xScale.domain(xExtent).nice();
+      yScale.domain(yExtent).nice();
+      const t=svg.transition().duration(750);
+      xAxisG.transition(t).call(d3.axisBottom(xScale));
+      yAxisG.transition(t).call(d3.axisLeft(yScale));
+      circles.transition(t)
+        .attr("cx",d=>xScale(d.catchRate))
+        .attr("cy",d=>yScale(d.avgTotal));
+      svg.selectAll(".annot").remove();
+    }
+
+    // Chart title
+    svg.append("text")
+        .attr("x", width/2).attr("y", -5)
+        .attr("text-anchor","middle")
+        .attr("font-weight","bold")
+        .text("Catch Rate vs Total Points");
+  })(raw);
+
+  // Draw radar chart for selected Pokémon
+  function drawRadar(pokeName) {
+    const cont = d3.select("#radar-chart");
+    cont.selectAll("*").remove();
+    const p = raw.find(d => d.name === pokeName);
+    if (!p) return;
+    const axes = [
+      {axis:"HP", value:p.hp},
+      {axis:"Attack", value:p.attack},
+      {axis:"Defense", value:p.def},
+      {axis:"Sp.Atk", value:p.spAtk},
+      {axis:"Sp.Def", value:p.spDef},
+      {axis:"Speed", value:p.speed}
+    ];
+    const W2 = cont.node().clientWidth,
+          H2 = cont.node().clientHeight,
+          m = 40,
+          rMax = Math.min(W2,H2)/2 - m,
+          angleSlice = Math.PI*2/axes.length,
+          maxStat = d3.max(axes, d => d.value),
+          rScale = d3.scaleLinear().domain([0, maxStat]).range([0, rMax]);
+    const svgR = cont.append("svg")
+      .attr("width", W2).attr("height", H2)
+      .append("g")
+      .attr("transform", `translate(${W2/2},${H2/2})`);
+    // Draw concentric circles
+    for (let lvl = 1; lvl <= 5; lvl++) {
+      svgR.append("circle")
+        .attr("r", rMax * lvl / 5)
+        .attr("fill", "#ddd")
+        .attr("stroke", "#aaa")
+        .attr("fill-opacity", 0.1);
+    }
+    // Draw axes lines and labels
+    axes.forEach((d,i) => {
+      const ang = angleSlice * i - Math.PI/2;
+      svgR.append("line")
+        .attr("x1", 0).attr("y1", 0)
+        .attr("x2", rMax * Math.cos(ang))
+        .attr("y2", rMax * Math.sin(ang))
+        .attr("stroke", "#888");
+      svgR.append("text")
+        .attr("x", (rMax+10) * Math.cos(ang))
+        .attr("y", (rMax+10) * Math.sin(ang))
+        .attr("text-anchor", "middle")
+        .text(d.axis);
+    });
+    // Radar line generator
+    const radarLine = d3.lineRadial()
+      .radius(d => rScale(d.value))
+      .angle((_,i) => i * angleSlice)
+      .curve(d3.curveCatmullRomClosed);
+    // Draw radar shape
+    svgR.append("path")
+      .datum(axes)
+      .attr("d", radarLine)
+      .attr("fill", typeColors[p.type1] || "#69b3a2")
+      .attr("fill-opacity", 0.6)
+      .attr("stroke", typeColors[p.type1] || "#69b3a2")
+      .attr("stroke-width", 2);
+    // Add radar chart title
+    cont.insert("h3","svg")
+      .text(`${pokeName} — Base Stats`)
+      .style("text-align","center")
+      .style("margin","4px 0");
   }
 
-  // — 3) Set up dimensions
-  const container = d3.select("#scatter-chart");
-  const margin    = { top: 20, right: 20, bottom: 50, left: 60 };
-  const width     = container.node().clientWidth  - margin.left - margin.right;
-  const height    = container.node().clientHeight - margin.top  - margin.bottom;
-
-  // — 4) Scales
-  const xScale = d3.scaleLinear()
-      .domain(d3.extent(scatterData, d => d.catchRate)).nice()
-      .range([0, width]);
-
-  const yScale = d3.scaleLinear()
-      .domain(d3.extent(scatterData, d => d.avgTotal)).nice()
-      .range([height, 0]);
-
-  const rScale = d3.scaleSqrt()
-      .domain([1, d3.max(scatterData, d => d.count)])
-      .range([3, 12]);  // min/max radius
-
-  // — 5) Create SVG
-  const svg = container.append("svg")
-      .attr("width",  width  + margin.left + margin.right)
-      .attr("height", height + margin.top  + margin.bottom)
-    .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  // — 6) Axes
-  svg.append("g")
-      .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(xScale));
-  svg.append("g")
-      .call(d3.axisLeft(yScale));
-
-  // — 7) Labels
-  svg.append("text")
-      .attr("x", width/2).attr("y", height + 40)
-      .attr("text-anchor","middle")
-      .text("Catch Rate");
-  svg.append("text")
-      .attr("transform","rotate(-90)")
-      .attr("x", -height/2).attr("y", -45)
-      .attr("text-anchor","middle")
-      .text("Avg Total Points (Atk+HP+Def)");
-
-  // — 8) Draw one circle per group
-  svg.selectAll("circle")
-    .data(scatterData)
-    .join("circle")
-      .attr("cx", d => xScale(d.catchRate))
-      .attr("cy", d => yScale(d.avgTotal))
-      .attr("r",  d => rScale(d.count))
-      .attr("fill", d => typeColors[d.type] || "#ccc")
-      .attr("opacity", 0.7)
-    .append("title")  // simple tooltip
-      .text(d => 
-        `${d.type}\nCatch Rate: ${d.catchRate}\nAvg Total: ${d.avgTotal.toFixed(1)}\nCount: ${d.count}`
-      );
-
-  // — 9) Title
-  svg.append("text")
-      .attr("x", width/2).attr("y", -5)
-      .attr("text-anchor","middle")
-      .attr("font-weight","bold")
-      .text("Are stronger Pokémon harder to catch?");
-
-  svg.append("text")
-      .attr("x", width/2).attr("y", 10)
-      .attr("text-anchor","middle")
-      .attr("font-weight","bold")
-      .text("Catch Rate vs Total Points ");
-})(raw);
-
-
-
-})
-
-.catch(err => console.error(err));
+}).catch(err => console.error(err));
